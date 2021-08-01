@@ -1,4 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { Link as Ln, useHistory } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import firebaseApp from '../../firebase';
+import { signIn } from '../../actions';
+
 import Avatar from '@material-ui/core/Avatar';
 import Button from '@material-ui/core/Button';
 import CssBaseline from '@material-ui/core/CssBaseline';
@@ -12,7 +17,6 @@ import LockOutlinedIcon from '@material-ui/icons/LockOutlined';
 import Typography from '@material-ui/core/Typography';
 import { makeStyles } from '@material-ui/core/styles';
 import Container from '@material-ui/core/Container';
-import { Link as Ln } from 'react-router-dom';
 
 const useStyles = makeStyles((theme) => ({
   paper: {
@@ -36,6 +40,37 @@ const useStyles = makeStyles((theme) => ({
 
 const Register = () => {
   const classes = useStyles();
+  const [displayName, setDisplayName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const dispatch = useDispatch();
+  const history = useHistory();
+
+  const createUser = (event) => {
+    event.preventDefault();
+    firebaseApp.auth().createUserWithEmailAndPassword(email, password)
+      .then(userCredential => {
+        console.log(userCredential);
+        userCredential.user.updateProfile({
+          displayName: displayName
+        }).then(() => {
+          dispatch(signIn(userCredential.user));
+        });
+        history.push('/dashboard');
+        firebaseApp.firestore().collection("Users").doc(firebaseApp.auth().currentUser.uid)
+          .set({ displayName, email })
+          .then(() => {
+            // registration successful
+            console.log("New user added to database");
+          })
+          .catch(error => {
+            console.log("Error writing to database: ", error);
+          })
+      })
+      .catch(error => {
+        console.log(error);
+      });
+  }
 
   return (
     <Container component="main" maxWidth="xs">
@@ -47,33 +82,26 @@ const Register = () => {
         <Typography component="h1" variant="h5">
           Sign up
         </Typography>
-        <form className={classes.form} noValidate>
+        <form className={classes.form} onSubmit={e => createUser(e)}>
           <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12} xs={12}>
               <TextField
+                value={displayName}
+                onChange={e => setDisplayName(e.target.value)}
                 autoComplete="fname"
-                name="firstName"
+                name="name"
                 variant="outlined"
                 required
                 fullWidth
                 id="firstName"
-                label="First Name"
+                label="Name"
                 autoFocus
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                variant="outlined"
-                required
-                fullWidth
-                id="lastName"
-                label="Last Name"
-                name="lastName"
-                autoComplete="lname"
               />
             </Grid>
             <Grid item xs={12}>
               <TextField
+                value={email}
+                onChange={e => setEmail(e.target.value)}
                 variant="outlined"
                 required
                 fullWidth
@@ -85,6 +113,8 @@ const Register = () => {
             </Grid>
             <Grid item xs={12}>
               <TextField
+                value={password}
+                onChange={e => setPassword(e.target.value)}
                 variant="outlined"
                 required
                 fullWidth
@@ -93,12 +123,6 @@ const Register = () => {
                 type="password"
                 id="password"
                 autoComplete="current-password"
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <FormControlLabel
-                control={<Checkbox value="allowExtraEmails" color="primary" />}
-                label="I want to receive inspiration, marketing promotions and updates via email."
               />
             </Grid>
           </Grid>
